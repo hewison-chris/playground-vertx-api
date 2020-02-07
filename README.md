@@ -59,6 +59,12 @@ Start the local repo server
 helm servecm --port=8879 --context-path=/charts --storage="local" --storage-local-rootdir="${HOME}/.helm/localrepo"
 ```
 
+Add helm repos
+```
+helm repo add stable https://kubernetes-charts.storage.googleapis.com
+helm repo add incubator https://kubernetes-charts-incubator.storage.googleapis.com
+helm repo add local http://localhost:8879/charts
+```
 ### Build, Deploy and Benchmark
 
 From the root of the project:
