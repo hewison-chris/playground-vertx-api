@@ -1,35 +1,53 @@
 package com.barb.vertxapi
 
+import com.barb.vertxapi.config.ConfigurationProvider
+import com.barb.vertxapi.utils.Consts
+import com.barb.vertxapi.utils.Consts.APPLICATION_PORT
 import com.barb.vertxapi.verticles.DataVerticle
 import com.barb.vertxapi.verticles.HttpVerticle
-import io.vertx.config.ConfigRetrieverOptions
-import io.vertx.config.ConfigStoreOptions
 import io.vertx.core.DeploymentOptions
+import io.vertx.core.Vertx
+import io.vertx.core.VertxOptions
 import io.vertx.core.json.JsonObject
-import io.vertx.reactivex.config.ConfigRetriever
-import io.vertx.reactivex.core.Vertx
+import io.vertx.kotlin.core.closeAwait
+import io.vertx.kotlin.coroutines.awaitResult
+import kotlinx.coroutines.runBlocking
+import java.util.concurrent.TimeUnit
 
-object App {
-  @JvmStatic
-  fun main(args: Array<String>) {
-    val vertx = Vertx.vertx()
-    val fileStore = ConfigStoreOptions()
-        .setType("file")
-        .setFormat("properties")
-        .setConfig(JsonObject().put("path", "application.properties"))
-    val envStore = ConfigStoreOptions().setType("env")
-    val retrieverOptions = ConfigRetrieverOptions()
-    retrieverOptions.addStore(fileStore).addStore(envStore)
-    val retriever = ConfigRetriever.create(vertx, retrieverOptions)
-    retriever.rxGetConfig()
-        .map { config: JsonObject? -> DeploymentOptions().setConfig(config) }
-        .flatMap { options: DeploymentOptions? -> vertx.rxDeployVerticle(DataVerticle::class.java.name, options).map { any: String? -> options } }
-        .flatMap { options: DeploymentOptions? -> vertx.rxDeployVerticle(HttpVerticle::class.java.name, options).map { any: String? -> options } }
-        .subscribe(
-            { deployId: DeploymentOptions? -> println("App started successfully!") }
-        ) { error: Throwable ->
-          error.printStackTrace()
-          System.exit(1)
-        }
+val vertx by lazy {
+  Vertx.vertx(VertxOptions()
+      .setWorkerPoolSize(1)
+      .setInternalBlockingPoolSize(1)
+      .setMaxEventLoopExecuteTimeUnit(TimeUnit.MILLISECONDS)
+      .setMaxEventLoopExecuteTime(TimeUnit.SECONDS.toMillis(2))
+  )
+}
+
+val config: JsonObject by lazy {
+  Vertx.vertx(
+      VertxOptions()
+          .setWorkerPoolSize(1)
+          .setInternalBlockingPoolSize(1)
+  )
+      .run {
+        val cfg = ConfigurationProvider.getConfiguration(this)
+        runBlocking { closeAwait() }
+        cfg
+      }
+}
+
+suspend fun main() {
+  listOf(
+      HttpVerticle(config.getInteger(APPLICATION_PORT)),
+      DataVerticle(config.getInteger(Consts.REDIS_PORT), config.getString(Consts.REDIS_HOST))
+  ).map {
+    awaitResult<String> { handler ->
+      vertx.deployVerticle(
+          it,
+          DeploymentOptions()
+              .setMaxWorkerExecuteTimeUnit(TimeUnit.MILLISECONDS)
+              .setMaxWorkerExecuteTime(TimeUnit.SECONDS.toMillis(60)),
+          handler)
+    }
   }
 }

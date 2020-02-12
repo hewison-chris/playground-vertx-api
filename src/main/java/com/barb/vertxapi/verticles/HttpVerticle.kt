@@ -1,41 +1,43 @@
 package com.barb.vertxapi.verticles
 
-import com.barb.vertxapi.api.WhiskyRequest
 import com.barb.vertxapi.utils.Consts
-import io.reactivex.Single
-import io.vertx.core.Promise
+import com.barb.vertxapi.web.registerHandler
+import com.barb.vertxapi.web.registerSuspendableHandler
 import io.vertx.core.eventbus.DeliveryOptions
-import io.vertx.core.json.JsonObject
-import io.vertx.reactivex.core.AbstractVerticle
-import io.vertx.reactivex.core.eventbus.Message
-import io.vertx.reactivex.core.http.HttpServer
-import io.vertx.reactivex.ext.web.Router
-import io.vertx.reactivex.ext.web.RoutingContext
-import io.vertx.reactivex.ext.web.handler.BodyHandler
+import io.vertx.core.eventbus.Message
+import io.vertx.ext.web.Router
+import io.vertx.ext.web.RoutingContext
+import io.vertx.ext.web.handler.BodyHandler
+import io.vertx.kotlin.core.http.closeAwait
+import io.vertx.kotlin.core.http.listenAwait
+import io.vertx.kotlin.coroutines.CoroutineVerticle
+import io.vertx.kotlin.coroutines.awaitResult
 
-class HttpVerticle : AbstractVerticle() {
-  override fun start(promise: Promise<Void>) {
+class HttpVerticle(val port: Int) : CoroutineVerticle() {
+  override suspend fun start() {
     val router = Router.router(vertx)
     router.route().handler(BodyHandler.create())
-    router.route("/").handler { rc: RoutingContext -> indexHandler(rc) }
-    router["/api/whiskies"].handler { rc: RoutingContext -> getWhiskiesHandler(rc) }
-    router["/api/whiskies/:id"].handler { rc: RoutingContext -> getWhiskiesHandler(rc) }
-    router.post("/api/whiskies").handler { rc: RoutingContext -> addWhiskyHandler(rc) }
-    router.delete("/api/whiskies/:id").handler { rc: RoutingContext -> deleteWhiskyHandler(rc) }
-    val applicationPort = config().getInteger(Consts.APPLICATION_PORT, 8080)
-    vertx.createHttpServer()
-        .requestHandler(router)
-        .rxListen(applicationPort)
-        .subscribe(
-            { success: HttpServer? -> promise.complete() }
-        ) { error: Throwable -> promise.fail(error.cause) }
+    router.route("/").registerHandler { getIndex(it) }
+    router.route("/").registerSuspendableHandler { getWhiskiesHandler(it) }
+    router["/api/whiskies"].registerSuspendableHandler { rc: RoutingContext -> getWhiskiesHandler(rc) }
+    router["/api/whiskies/:id"].registerSuspendableHandler { rc: RoutingContext -> getWhiskiesHandler(rc) }
+    router.post("/api/whiskies").registerSuspendableHandler { rc: RoutingContext -> addWhiskyHandler(rc) }
+    router.delete("/api/whiskies/:id").registerSuspendableHandler { rc: RoutingContext -> deleteWhiskyHandler(rc) }
+
+    vertx.createHttpServer().apply {
+      try {
+        requestHandler(router).listenAwait(port)
+      } catch (e: Exception) {
+        closeAwait()
+        throw e
+      }
+    }
   }
 
-  private fun indexHandler(rc: RoutingContext) {
-    val response = rc.response()
-    response
+  private fun getIndex(routingContext: RoutingContext) {
+    routingContext.response()
         .putHeader("content-type", "text/html")
-        .end("<h1>Hello from my first Vert.x 3 application</h1>")
+        .end("<h1>Sexy coroutines, I love you :-)</h1>")
   }
 
   private fun getWhiskiesHandler(rc: RoutingContext) {
@@ -44,7 +46,7 @@ class HttpVerticle : AbstractVerticle() {
     val id = request.getParam("id")
     response
         .putHeader("content-type", "application/json; charset=utf-8")
-    //    if (id == null) {
+//    if (id == null) {
 //      response.end(Json.encodePrettily(products.values()));
 //    } else {
 //      final Whisky whisky = products.get(Integer.valueOf(id));
@@ -57,19 +59,16 @@ class HttpVerticle : AbstractVerticle() {
     response.end()
   }
 
-  private fun addWhiskyHandler(rc: RoutingContext) {
+  private suspend fun addWhiskyHandler(rc: RoutingContext) {
     val response = rc.response()
-    response
-        .putHeader("content-type", "application/json; charset=utf-8")
-    Single.just(rc.bodyAsJson)
-        .map { body: JsonObject -> body.mapTo(WhiskyRequest::class.java) }
-        .flatMap { whiskyRequest: WhiskyRequest? ->
-          val options = DeliveryOptions().addHeader("action", "set")
-          vertx.eventBus().rxRequest<String?>(Consts.EVENT_BUS_DATA_API, JsonObject.mapFrom(whiskyRequest), options)
-        }
-        .subscribe(
-            { responseItem: Message<String?>? -> response.setStatusCode(201).end() }
-        ) { error: Throwable -> response.setStatusCode(500).end(error.message) }
+    response.putHeader("content-type", "application/json; charset=utf-8")
+    awaitResult<Message<String>> {
+      vertx.eventBus().send(
+          Consts.EVENT_BUS_DATA_API,
+          rc.bodyAsJson,
+          DeliveryOptions().addHeader("action", "set"))
+    }
+    response.setStatusCode(201).end()
   }
 
   private fun deleteWhiskyHandler(rc: RoutingContext) {
