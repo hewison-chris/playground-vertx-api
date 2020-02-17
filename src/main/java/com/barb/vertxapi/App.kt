@@ -38,8 +38,12 @@ val config: JsonObject by lazy {
 
 suspend fun main() {
   listOf(
-      HttpVerticle(config.getInteger(APPLICATION_PORT)),
-      DataVerticle(config.getInteger(Consts.REDIS_PORT), config.getString(Consts.REDIS_HOST))
+      HttpVerticle(config.getInteger(APPLICATION_PORT, 8080)),
+      DataVerticle(
+          config.getInteger(Consts.REDIS_PORT, 6379),
+          config.getString(Consts.REDIS_HOST, "localhost"),
+          config.getInteger(Consts.REDIS_DB, 0)
+      )
   ).map {
     awaitResult<String> { handler ->
       vertx.deployVerticle(
