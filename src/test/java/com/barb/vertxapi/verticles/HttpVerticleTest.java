@@ -1,11 +1,10 @@
 package com.barb.vertxapi.verticles;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-
+import com.barb.vertxapi.domain.Whisky;
 import com.barb.vertxapi.utils.Consts;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -15,6 +14,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import java.io.IOException;
+import java.net.ServerSocket;
 
 @RunWith(VertxUnitRunner.class)
 public class HttpVerticleTest {
@@ -27,7 +29,7 @@ public class HttpVerticleTest {
     vertx = Vertx.vertx();
     port = getRandomPort();
     final DeploymentOptions options = new DeploymentOptions().setConfig(new JsonObject().put(Consts.APPLICATION_PORT, port));
-    vertx.deployVerticle(HttpVerticle.class.getName(), options, context.asyncAssertSuccess());
+    vertx.deployVerticle(new HttpVerticle(port), options, context.asyncAssertSuccess());
   }
 
   private int getRandomPort() throws IOException {
@@ -58,22 +60,22 @@ public class HttpVerticleTest {
         });
   }
 
-  //  @Test
-  //  public void testAddWhiskyShouldWork(final TestContext context) {
-  //    final Async async = context.async();
-  //    WebClient client = WebClient.create(vertx);
-  //    final Whisky body = new Whisky("Barbaros", "Kusadasi, Turkey");
-  //    client
-  //        .post(port, "localhost", "/api/whiskies")
-  //        .putHeader("content-type", "application/json")
-  //        .sendJson(body, r -> {
-  //          context.assertEquals(r.result().statusCode(), 201);
-  //          context.assertTrue(r.result().headers().get("content-type").contains("application/json"));
-  //
-  //          final Whisky whisky = Json.decodeValue(r.result().bodyAsString(), Whisky.class);
-  //          context.assertEquals(whisky.getName(), "Barbaros");
-  //          context.assertEquals(whisky.getOrigin(), "Kusadasi, Turkey");
-  //          async.complete();
-  //        });
-  //  }
+//  @Test
+//  public void testAddWhiskyShouldWork(final TestContext context) {
+//    final Async async = context.async();
+//    WebClient client = WebClient.create(vertx);
+//    final Whisky body = new Whisky("Barbaros", "Kusadasi, Turkey", 0);
+//    client
+//        .post(port, "localhost", "/api/whiskies")
+//        .putHeader("content-type", "application/json")
+//        .sendJson(body, r -> {
+//          context.assertEquals(r.result().statusCode(), 201);
+//          context.assertTrue(r.result().headers().get("content-type").contains("application/json"));
+//
+//          final Whisky whisky = Json.decodeValue(r.result().bodyAsString(), Whisky.class);
+//          context.assertEquals(whisky.getName(), "Barbaros");
+//          context.assertEquals(whisky.getOrigin(), "Kusadasi, Turkey");
+//          async.complete();
+//        });
+//  }
 }

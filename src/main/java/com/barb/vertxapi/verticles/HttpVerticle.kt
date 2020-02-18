@@ -5,6 +5,7 @@ import com.barb.vertxapi.web.registerHandler
 import com.barb.vertxapi.web.registerSuspendableHandler
 import io.vertx.core.eventbus.DeliveryOptions
 import io.vertx.core.eventbus.Message
+import io.vertx.core.json.Json
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
@@ -37,7 +38,7 @@ class HttpVerticle(val port: Int) : CoroutineVerticle() {
   private fun getIndex(routingContext: RoutingContext) {
     routingContext.response()
         .putHeader("content-type", "text/html")
-        .end("<h1>Sexy coroutines, I love you :-)</h1>")
+        .end("<h1>Hello Sexy coroutines, I love you :-)</h1>")
   }
 
   private fun getWhiskiesHandler(rc: RoutingContext) {
