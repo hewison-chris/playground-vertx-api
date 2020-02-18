@@ -1,10 +1,11 @@
 package com.barb.vertxapi.verticles;
 
-import com.barb.vertxapi.domain.Whisky;
+import java.io.IOException;
+import java.net.ServerSocket;
+
 import com.barb.vertxapi.utils.Consts;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -15,12 +16,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-
 @RunWith(VertxUnitRunner.class)
 public class HttpVerticleTest {
 
+  public static final int ONE_SECOND = 1000;
   private Vertx vertx;
   private Integer port;
 
@@ -28,8 +27,7 @@ public class HttpVerticleTest {
   public void setup(TestContext context) throws IOException {
     vertx = Vertx.vertx();
     port = getRandomPort();
-    final DeploymentOptions options = new DeploymentOptions().setConfig(new JsonObject().put(Consts.APPLICATION_PORT, port));
-    vertx.deployVerticle(new HttpVerticle(port), options, context.asyncAssertSuccess());
+    vertx.deployVerticle(new HttpVerticle(port), context.asyncAssertSuccess());
   }
 
   private int getRandomPort() throws IOException {
@@ -49,8 +47,7 @@ public class HttpVerticleTest {
 
     final Async async = context.async();
 
-    WebClient client = WebClient.create(vertx);
-    client
+    WebClient.create(vertx)
         .get(port, "localhost", "/")
         .send(r -> {
           if (r.succeeded()) {
@@ -58,6 +55,7 @@ public class HttpVerticleTest {
             async.complete();
           }
         });
+    async.awaitSuccess(ONE_SECOND);
   }
 
 //  @Test

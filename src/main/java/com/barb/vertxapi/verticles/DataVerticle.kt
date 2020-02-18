@@ -39,7 +39,7 @@ class DataVerticle(val port: Int, val host: String, val db: Int) : CoroutineVert
     redisClient = createClient(
         vertx,
         RedisOptions()
-            .addEndpoint(SocketAddress.inetSocketAddress(port, host))
+            .addEndpoint(SocketAddress.inetSocketAddress(port,host))
             .setSelect(db)
     ).connectAwait() as RedisClient
     vertx.eventBus().consumer<String>(EVENT_BUS_DATA_API)

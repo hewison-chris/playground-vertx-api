@@ -1,14 +1,14 @@
 package com.barb.vertxapi.verticles
 
-import com.barb.vertxapi.utils.Consts
+import com.barb.vertxapi.utils.Consts.EVENT_BUS_DATA_API
 import com.barb.vertxapi.web.registerHandler
 import com.barb.vertxapi.web.registerSuspendableHandler
 import io.vertx.core.eventbus.DeliveryOptions
 import io.vertx.core.eventbus.Message
-import io.vertx.core.json.Json
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
+import io.vertx.kotlin.core.eventbus.requestAwait
 import io.vertx.kotlin.core.http.closeAwait
 import io.vertx.kotlin.core.http.listenAwait
 import io.vertx.kotlin.coroutines.CoroutineVerticle
@@ -41,33 +41,28 @@ class HttpVerticle(val port: Int) : CoroutineVerticle() {
         .end("<h1>Hello Sexy coroutines, I love you :-)</h1>")
   }
 
-  private fun getWhiskiesHandler(rc: RoutingContext) {
-    val request = rc.request()
-    val response = rc.response()
-    val id = request.getParam("id")
-    response
-        .putHeader("content-type", "application/json; charset=utf-8")
-//    if (id == null) {
-//      response.end(Json.encodePrettily(products.values()));
-//    } else {
-//      final Whisky whisky = products.get(Integer.valueOf(id));
-//      if (whisky == null) {
-//        response.setStatusCode(404).end();
-//      } else {
-//        response.end(Json.encodePrettily(whisky));
-//      }
-//    }
-    response.end()
-  }
+  private suspend fun getWhiskiesHandler(routingContext: RoutingContext) =
+      vertx.eventBus().requestAwait<String>(
+          EVENT_BUS_DATA_API,
+          routingContext.request().getParam("id"),
+          DeliveryOptions().addHeader("action", "get").setSendTimeout(100))
+          .let { msg ->
+            routingContext
+                .response()
+                .putHeader("content-type", "application/json; charset=utf-8")
+                .setStatusCode(if (msg.isSend) 200 else 404)
+                .end(msg.body())
+          }
 
   private suspend fun addWhiskyHandler(rc: RoutingContext) {
     val response = rc.response()
     response.putHeader("content-type", "application/json; charset=utf-8")
     awaitResult<Message<String>> {
       vertx.eventBus().send(
-          Consts.EVENT_BUS_DATA_API,
+          EVENT_BUS_DATA_API,
           rc.bodyAsJson,
-          DeliveryOptions().addHeader("action", "set"))
+          DeliveryOptions().addHeader("action", "set")
+      )
     }
     response.setStatusCode(201).end()
   }

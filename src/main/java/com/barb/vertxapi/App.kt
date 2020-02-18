@@ -14,7 +14,7 @@ import io.vertx.kotlin.coroutines.awaitResult
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
 
-val vertx by lazy {
+val vertx: Vertx by lazy {
   Vertx.vertx(VertxOptions()
       .setWorkerPoolSize(1)
       .setInternalBlockingPoolSize(1)
