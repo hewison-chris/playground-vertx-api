@@ -13,15 +13,24 @@ import io.vertx.kotlin.core.http.closeAwait
 import io.vertx.kotlin.core.http.listenAwait
 import io.vertx.kotlin.coroutines.CoroutineVerticle
 import io.vertx.kotlin.coroutines.awaitResult
+import mu.KotlinLogging
 
 class HttpVerticle(val port: Int) : CoroutineVerticle() {
+  private val logger = KotlinLogging.logger {}
+
   override suspend fun start() {
     val router = Router.router(vertx)
     router.route().handler(BodyHandler.create())
     router.route("/").registerHandler { getIndex(it) }
-    router["/api/whiskies/:id"].registerSuspendableHandler { rc: RoutingContext -> getWhiskyHandler(rc) }
+    router.route("/api/whiskies/:id").registerSuspendableHandler { rc: RoutingContext -> getWhiskyHandler(rc) }
     router.post("/api/whiskies").registerSuspendableHandler { rc: RoutingContext -> addWhiskyHandler(rc) }
     router.delete("/api/whiskies/:id").registerSuspendableHandler { rc: RoutingContext -> deleteWhiskyHandler(rc) }
+    router.route().last().failureHandler {
+      it.response()
+          .putHeader("content-type", "text/html")
+          .end("""<h2>${it.failure().localizedMessage}</h2>""".trimMargin())
+      it.failure().printStackTrace()
+    }
 
     vertx.createHttpServer().apply {
       try {
@@ -36,7 +45,7 @@ class HttpVerticle(val port: Int) : CoroutineVerticle() {
   private fun getIndex(routingContext: RoutingContext) {
     routingContext.response()
         .putHeader("content-type", "text/html")
-        .end("""<a href="http://localhost:8080/api/whiskies">/api/whiskies</a>""")
+        .end("""<a href="http://localhost:8080/api/whiskies">/api/whiskies/1</a>""")
   }
 
   private suspend fun getWhiskyHandler(routingContext: RoutingContext) =
@@ -50,7 +59,7 @@ class HttpVerticle(val port: Int) : CoroutineVerticle() {
                 .putHeader("content-type", "application/json; charset=utf-8")
                 .setStatusCode(if (msg.isSend) 200 else 404)
                 .end(msg.body())
-          }
+          }.also { logger.info { it.toString() } }
 
   private suspend fun addWhiskyHandler(rc: RoutingContext) {
     val response = rc.response()

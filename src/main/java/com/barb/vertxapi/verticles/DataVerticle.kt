@@ -5,6 +5,7 @@ import com.barb.vertxapi.vertx
 import io.vertx.core.eventbus.Message
 import io.vertx.core.eventbus.MessageConsumer
 import io.vertx.core.net.SocketAddress
+import io.vertx.kotlin.core.eventbus.replyAndRequestAwait
 import io.vertx.kotlin.coroutines.CoroutineVerticle
 import io.vertx.kotlin.coroutines.dispatcher
 import io.vertx.kotlin.redis.client.connectAwait
@@ -16,8 +17,10 @@ import io.vertx.redis.client.Request
 import io.vertx.redis.client.impl.RedisClient
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import mu.KotlinLogging
 import java.util.*
 
+private val logger = KotlinLogging.logger { }
 /**
  * An extension method for simplifying Vert.x Redis handlers
  */
@@ -27,7 +30,9 @@ suspend fun <T> MessageConsumer<T>.registerSuspendableHandler(fn: suspend (Messa
         try {
           fn(msg)
         } catch (e: Exception) {
-          msg.fail(-1, e.message)
+          msg.fail(-1, e.message).also {
+            logger.error { e.localizedMessage }
+          }
         }
       }
     }
@@ -48,10 +53,9 @@ class DataVerticle(val port: Int, val host: String, val db: Int) : CoroutineVert
 
   private suspend fun handleApiMessage(message: Message<String>) =
       with(redisClient) {
-        val redisKey = "whisky:" + RANDOM.nextInt()
         when (val action = message.headers()["action"]) {
-          "set" -> sendAwait(Request.cmd(Command.APPEND).arg(redisKey).arg(message.body()))
-          "get" -> sendAwait(Request.cmd(Command.GET).arg(redisKey))
+          "set" -> sendAwait(Request.cmd(Command.APPEND).arg("whisky:" + RANDOM.nextInt()).arg(message.body()))
+          "get" -> message.reply(sendAwait(Request.cmd(Command.GET).arg(message.body().toLong())))
           else -> throw Exception("Invalid Redis message action:'$action'")
         }
       }
