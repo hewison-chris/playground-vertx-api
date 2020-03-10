@@ -9,7 +9,7 @@
         <Logger name="io.netty.util.internal.logging.InternalLoggerFactory" level="WARN">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Root level="WARN">
+        <Root level="INFO">
             <AppenderRef ref="Console"/>
         </Root>
     </Loggers>

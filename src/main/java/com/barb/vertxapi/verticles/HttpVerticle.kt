@@ -19,9 +19,7 @@ class HttpVerticle(val port: Int) : CoroutineVerticle() {
     val router = Router.router(vertx)
     router.route().handler(BodyHandler.create())
     router.route("/").registerHandler { getIndex(it) }
-    router.route("/").registerSuspendableHandler { getWhiskiesHandler(it) }
-    router["/api/whiskies"].registerSuspendableHandler { rc: RoutingContext -> getWhiskiesHandler(rc) }
-    router["/api/whiskies/:id"].registerSuspendableHandler { rc: RoutingContext -> getWhiskiesHandler(rc) }
+    router["/api/whiskies/:id"].registerSuspendableHandler { rc: RoutingContext -> getWhiskyHandler(rc) }
     router.post("/api/whiskies").registerSuspendableHandler { rc: RoutingContext -> addWhiskyHandler(rc) }
     router.delete("/api/whiskies/:id").registerSuspendableHandler { rc: RoutingContext -> deleteWhiskyHandler(rc) }
 
@@ -38,10 +36,10 @@ class HttpVerticle(val port: Int) : CoroutineVerticle() {
   private fun getIndex(routingContext: RoutingContext) {
     routingContext.response()
         .putHeader("content-type", "text/html")
-        .end("<h1>Hello Sexy coroutines, I love you :-)</h1>")
+        .end("""<a href="http://localhost:8080/api/whiskies">/api/whiskies</a>""")
   }
 
-  private suspend fun getWhiskiesHandler(routingContext: RoutingContext) =
+  private suspend fun getWhiskyHandler(routingContext: RoutingContext) =
       vertx.eventBus().requestAwait<String>(
           EVENT_BUS_DATA_API,
           routingContext.request().getParam("id"),

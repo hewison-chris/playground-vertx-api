@@ -41,7 +41,7 @@ suspend fun main() {
       HttpVerticle(config.getInteger(APPLICATION_PORT, 8080)),
       DataVerticle(
           config.getInteger(Consts.REDIS_PORT, 6379),
-          config.getString(Consts.REDIS_HOST, "localhost"),
+          config.getString(Consts.REDIS_HOST, "localghost"),
           config.getInteger(Consts.REDIS_DB, 0)
       )
   ).map {
@@ -52,6 +52,6 @@ suspend fun main() {
               .setMaxWorkerExecuteTimeUnit(TimeUnit.MILLISECONDS)
               .setMaxWorkerExecuteTime(TimeUnit.SECONDS.toMillis(60)),
           handler)
-    }
+    }.let { println(it) }
   }
 }
